@@ -1,23 +1,21 @@
 from django.contrib import admin
 from .models import Question, Choice, Thread
 
-# Register your models here.
-
 
 @admin.register(Question)
 class QuestionAdmin(admin.ModelAdmin):
-    list_display = ['title', 'description', 'expire_at']
+    list_display = ['title', 'description', 'expire_at', 'has_voted', 'status']
     list_filter = ['title', 'expire_at']
-    list_editable = ['title', 'description', 'expire_at']
 
 
 @admin.register(Choice)
 class ChoiceAdmin(admin.ModelAdmin):
-    list_display = ['user', 'Question', 'text', 'is_active', 'id']
+    list_display = ['user', 'question', 'text', 'id', 'votes']
+    list_filter = ['text']
 
 
 @admin.register(Thread)
 class ThreadAdmin(admin.ModelAdmin):
-    list_display = ['user', 'Question', 'title', 'content', 'id']
+    list_display = ['user', 'question', 'title', 'content', 'id']
 
 

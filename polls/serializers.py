@@ -4,19 +4,20 @@ from voters.models import User
 
 
 class QuestionSerializer(serializers.ModelSerializer):
+    vote_count = serializers.SerializerMethodField()
+    choices = serializers.SerializerMethodField()
 
     class Meta:
         model = Question
-        fields = "__all__"
+        fields = ['id', 'title', 'description', 'expire_at', 'choices', 'vote_count', 'status']
 
+    def get_choices(self, obj):
+        c_qs = Choice.objects.filter(question_id=obj.id)
+        choices = ChoiceSerializer(c_qs, many=True).data
+        return choices
 
-class ThreadSerializer(serializers.ModelSerializer):
-    user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
-    Question = QuestionSerializer(read_only=True)
-
-    class Meta:
-        model = Thread
-        fields = ['user', 'id', 'title', 'description', 'Question']
+    def get_vote_count(self, obj):
+        return obj.choices_count
 
 
 class ChoiceSerializer(serializers.ModelSerializer):
@@ -28,5 +29,10 @@ class ChoiceSerializer(serializers.ModelSerializer):
         fields = ['user', 'id', 'is_active', 'question', 'votes']
 
 
-class VoteSerializer(serializers.Serializer):  # noqa
-    choice_id = serializers.IntegerField()
+class ThreadSerializer(serializers.ModelSerializer):
+    user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
+    Question = QuestionSerializer(read_only=True)
+
+    class Meta:
+        model = Thread
+        fields = ['user', 'id', 'title', 'description', 'Question']

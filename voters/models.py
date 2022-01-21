@@ -6,13 +6,16 @@ from django.contrib.auth.validators import UnicodeUsernameValidator
 import binascii
 import os
 from django.utils.translation import ugettext_lazy as _
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from django.conf import settings
+from django.core.mail import send_mail
+from django.utils.crypto import get_random_string
+from rest_framework_simplejwt.tokens import RefreshToken
 
 
-class MyOwnToken(models.Model):
-    key = models.CharField(_("Key"), max_length=40, primary_key=True)
+class MyToken(models.Model):
+    key = models.CharField(_("Key"), max_length=40, primary_key=True, db_index=True, unique=True)
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL, related_name='auth_token',
         on_delete=models.CASCADE, verbose_name=_("User")
@@ -26,7 +29,7 @@ class MyOwnToken(models.Model):
     def save(self, *args, **kwargs):
         if not self.key:
             self.key = self.generate_key()
-        return super(MyOwnToken, self).save(*args, **kwargs)
+        return super(MyToken, self).save(*args, **kwargs)
 
     def generate_key(self):
         return binascii.hexlify(os.urandom(20)).decode()
@@ -74,13 +77,28 @@ class User(AbstractUser):
     EMAIL_FIELD = 'email'
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
-
+    is_verified = models.BooleanField(default=False, blank=True, null=True)
     username_validator = UnicodeUsernameValidator()
     email = models.EmailField(_('email address'), unique=True, blank=False, null=False)
     email_verified_at = models.DateTimeField(blank=True, null=True)
+
+    @property
+    def create_confirmation_number(self):
+        return get_random_string(length=6, allowed_chars='1234567890')
+
+
+@receiver(pre_save, sender=settings.AUTH_USER_MODEL)
+def send_mail_on_create(sender, instance, created, **kwargs):
+    if created:
+        send_mail(
+            f'message from the poll app to {instance.username} to verify you account so please enter the 6-digit number to confirm',
+            instance.create_confirmation_number,
+            instance.email,
+            settings.EMAIL_HOST_USER,
+        )
 
 
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
 def TokenCreate(sender, instance, created, **kwargs):
     if created:
-        MyOwnToken.objects.create(user=instance)
+        MyToken.objects.create(user=instance)

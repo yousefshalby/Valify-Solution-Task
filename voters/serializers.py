@@ -2,6 +2,8 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.utils.translation import gettext as _
 from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import AuthenticationFailed
+from django.contrib import auth
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -48,10 +50,44 @@ class UserSerializer(serializers.ModelSerializer):
         return super(UserSerializer, self).update(instance, validated_data)
 
     def save(self, **kwargs):
-        if 'is_created' not in self.context:
-            raise ValueError('is_created does not exist')
         user = super(UserSerializer, self).save()
         if 'password' in self.validated_data:
             user.set_password(self.validated_data["password"])
             user.save()
         return user
+
+
+class LoginSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(style={'input_type': 'password'}, write_only=True, required=True)
+
+    class Meta:
+        model = get_user_model()
+        fields = ['email', 'password']
+        extra_kwargs = {"password": {"write_only": True}}
+
+    def validate(self, attrs):
+        email = attrs.get('email', '')
+        password = attrs.get('password', '')
+        filtered_user_by_email = get_user_model().objects.filter(email=email)
+        user = auth.authenticate(email=email, password=password)
+
+        if filtered_user_by_email.exists() and filtered_user_by_email[0].auth_provider != 'email':
+            raise AuthenticationFailed(
+                detail='Please continue your login using ' + filtered_user_by_email[0].auth_provider)
+
+        if not user:
+            raise AuthenticationFailed('Invalid credentials, try again')
+        if not user.is_active:
+            raise AuthenticationFailed('Account disabled, contact admin')
+        if not user.is_verified:
+            raise AuthenticationFailed('Email is not verified')
+
+        return super().validate(attrs)
+
+
+class EmailVerificationSerializer(serializers.ModelSerializer):
+    token = serializers.CharField(max_length=555)
+
+    class Meta:
+        model = get_user_model()
+        fields = ['token']
