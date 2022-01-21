@@ -8,9 +8,11 @@ from .models import Question, Choice
 from django.utils import timezone
 from django.db.models import Prefetch
 from rest_framework import filters
+from voters.authentication import MyOwnTokenAuthentication
 
 
 class GetPolls(APIView, LimitOffsetPagination):
+    authentication_classes = [MyOwnTokenAuthentication]
     serializer_class = QuestionSerializer
     filter_backends = (filters.SearchFilter,)
     search_fields = ['title', 'description', 'poll_question']
@@ -23,6 +25,7 @@ class GetPolls(APIView, LimitOffsetPagination):
 
 
 class VotePolls(APIView):
+    authentication_classes = [MyOwnTokenAuthentication]
     serializer_class = ChoiceSerializer
 
     def post(self, request, question_id, *args, **kwargs):

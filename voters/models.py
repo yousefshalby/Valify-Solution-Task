@@ -11,7 +11,6 @@ from django.dispatch import receiver
 from django.conf import settings
 from django.core.mail import send_mail
 from django.utils.crypto import get_random_string
-from rest_framework_simplejwt.tokens import RefreshToken
 
 
 class MyToken(models.Model):
@@ -36,6 +35,20 @@ class MyToken(models.Model):
 
     def __str__(self):
         return self.key
+
+
+class MyRefreshToken(MyToken):
+
+    def save(self, *args, **kwargs):
+        if not self.key:
+            self.key = self.generate_key()
+        return super(MyRefreshToken, self).save(*args, **kwargs)
+
+
+@receiver(post_save, sender=MyToken)
+def RefreshTokenCreate(sender, instance, created, **kwargs):
+    if created:
+        MyRefreshToken.objects.create(user=instance)
 
 
 class UserManager(BaseUserManager):

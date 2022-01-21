@@ -86,8 +86,12 @@ class LoginSerializer(serializers.ModelSerializer):
 
 
 class EmailVerificationSerializer(serializers.ModelSerializer):
-    token = serializers.CharField(max_length=555)
+    verification_number = serializers.SerializerMethodField()
 
     class Meta:
         model = get_user_model()
-        fields = ['token']
+        fields = ['verification_number']
+
+    def get_verification_number(self, obj):
+        return obj.create_confirmation_number
+
