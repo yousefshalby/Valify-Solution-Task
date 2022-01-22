@@ -2,13 +2,16 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.utils.translation import gettext as _
 from rest_framework.exceptions import ValidationError
-from rest_framework.exceptions import AuthenticationFailed
-from django.contrib import auth
+from django.contrib.auth import authenticate
+
+from voters.models import MyToken
 
 
 class UserSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(style={'input_type': 'password'}, write_only=True, required=True)
-    confirm_password = serializers.CharField(style={'input_type': 'password'}, write_only=True, required=True)
+    password = serializers.CharField(style={'input_type': 'password'}, write_only=True, trim_whitespace=False,
+                                     required=True)
+    confirm_password = serializers.CharField(style={'input_type': 'password'}, write_only=True, trim_whitespace=False,
+                                             required=True)
 
     class Meta:
         model = get_user_model()
@@ -58,31 +61,33 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class LoginSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(style={'input_type': 'password'}, write_only=True, required=True)
+    username = serializers.CharField(label=_("Username"), write_only=True)
+    password = serializers.CharField(label=_("Password"), style={'input_type': 'password'},
+                                     trim_whitespace=False, write_only=True)
+    token = serializers.CharField(label=_("Token"), read_only=True)
+    extra_kwargs = {"password": {"write_only": True}}
 
     class Meta:
-        model = get_user_model()
-        fields = ['email', 'password', "id"]
-        extra_kwargs = {"password": {"write_only": True}}
+        fields = ['username', 'password', 'token']
+        model = MyToken
 
     def validate(self, attrs):
-        email = attrs.get('email', '')
-        password = attrs.get('password', '')
-        filtered_user_by_email = get_user_model().objects.filter(email=email)
-        user = auth.authenticate(email=email, password=password)
+        username = attrs.get('username')
+        password = attrs.get('password')
 
-        if filtered_user_by_email.exists() and filtered_user_by_email[0].auth_provider != 'email':
-            raise AuthenticationFailed(
-                detail='Please continue your login using ' + filtered_user_by_email[0].auth_provider)
+        if username and password:
+            user = authenticate(request=self.context.get('request'),
+                                username=username, password=password)
 
-        if not user:
-            raise AuthenticationFailed('Invalid credentials, try again')
-        if not user.is_active:
-            raise AuthenticationFailed('Account disabled, contact admin')
-        if not user.is_verified:
-            raise AuthenticationFailed('Email is not verified')
+            if not user:
+                msg = _('Unable to log in with provided credentials.')
+                raise serializers.ValidationError(msg, code='authorization')
+        else:
+            msg = _('Must include "username" and "password".')
+            raise serializers.ValidationError(msg, code='authorization')
 
-        return super().validate(attrs)
+        attrs['user'] = user
+        return attrs
 
 
 class EmailVerificationSerializer(serializers.ModelSerializer):
@@ -91,5 +96,3 @@ class EmailVerificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = get_user_model()
         fields = ['verification_number']
-
-

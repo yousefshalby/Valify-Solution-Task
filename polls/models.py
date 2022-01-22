@@ -12,7 +12,6 @@ class Question(models.Model):
     description = models.TextField(max_length=255, blank=True, null=True)
     expire_at = models.DateTimeField(blank=True, null=True)
     status = models.CharField(max_length=50, choices=STATUS, blank=True, null=True)
-    user_has_voted = models.BooleanField(default=False, blank=True, null=True)
 
     class Meta:
         ordering = ["-expire_at"]
@@ -33,6 +32,7 @@ class Choice(models.Model):
     question = models.ForeignKey(Question, related_name="poll_question", on_delete=models.CASCADE)
     text = models.CharField(max_length=100)
     votes = models.IntegerField(default=0)
+    user_has_voted = models.BooleanField(default=False)
 
     def __str__(self):
         return self.text

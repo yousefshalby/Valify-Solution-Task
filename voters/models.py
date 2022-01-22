@@ -6,15 +6,13 @@ from django.contrib.auth.validators import UnicodeUsernameValidator
 import binascii
 import os
 from django.utils.translation import ugettext_lazy as _
-from django.db.models.signals import post_save
-from django.dispatch import receiver
 from django.conf import settings
 
 
 class MyToken(models.Model):
     key = models.CharField(_("Key"), max_length=40, primary_key=True, db_index=True, unique=True)
     user = models.OneToOneField(
-        settings.AUTH_USER_MODEL, related_name='auth_token',
+        settings.AUTH_USER_MODEL, related_name='my_auth_token',
         on_delete=models.CASCADE, verbose_name=_("User")
     )
     created = models.DateTimeField(_("Created"), auto_now_add=True)
@@ -35,17 +33,13 @@ class MyToken(models.Model):
         return super(MyToken, self).save(*args, **kwargs)
 
 
-class MyRefreshToken(models.Model):
-    access_key = models.CharField(_("Access_Key"), max_length=40, db_index=True, unique=True, blank=True, null=True)
-    user = models.OneToOneField(
-        settings.AUTH_USER_MODEL, related_name='auth_refresh_token',
+class MyRefreshToken(MyToken):
+    new_user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, related_name='my_auth_refresh_token',
         on_delete=models.CASCADE, verbose_name=_("User")
     )
-    refresh_token_key = models.CharField(_("Refresh_Token_Key"), max_length=40, primary_key=True, db_index=True, unique=True)
+    refresh_token_key = models.CharField(_("Refresh_Token_Key"), max_length=40, db_index=True, unique=True)
     refresh_token_created = models.DateTimeField(_("Created"), auto_now_add=True)
-
-    def generate_access_token(self):
-        return binascii.hexlify(os.urandom(20)).decode()
 
     def generate_refresh_token(self):
         return binascii.hexlify(os.urandom(20)).decode()
@@ -55,16 +49,10 @@ class MyRefreshToken(models.Model):
 
     def save(self, *args, **kwargs):
         if self.refresh_token_key:
-            self.key = self.generate_access_token()
+            self.key = self.generate_key()
 
         self.refresh_token_key = self.generate_refresh_token()
         return super(MyRefreshToken, self).save(*args, **kwargs)
-
-
-@receiver(post_save, sender=settings.AUTH_USER_MODEL)
-def RefreshTokenCreate(sender, instance, created, **kwargs):
-    if created:
-        MyRefreshToken.objects.create(user=instance)
 
 
 class UserManager(BaseUserManager):
@@ -112,13 +100,3 @@ class User(AbstractUser):
     email = models.EmailField(_('email address'), unique=True, blank=False, null=False)
     email_verified_at = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
-
-    # @property
-    # def create_confirmation_number(self):
-    #     return get_random_string(length=6, allowed_chars='1234567890')
-
-
-@receiver(post_save, sender=settings.AUTH_USER_MODEL)
-def TokenCreate(sender, instance, created, **kwargs):
-    if created:
-        MyToken.objects.create(user=instance)

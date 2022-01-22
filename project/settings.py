@@ -69,6 +69,7 @@ TEMPLATES = [
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'voters.authentication.MyOwnTokenAuthentication',
+        'voters.authentication.MyRefreshTokenAuthentication',
     ),
 }
 
