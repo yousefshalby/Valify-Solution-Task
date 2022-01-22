@@ -27,18 +27,18 @@ class QuestionSerializer(serializers.ModelSerializer):
 
 
 class ChoiceSerializer(serializers.ModelSerializer):
-    Question = QuestionSerializer(read_only=True)
+    question = serializers.PrimaryKeyRelatedField(queryset=Question.objects.all(), required=False)
     user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
 
     class Meta:
         model = Choice
-        fields = ['user', 'id', 'is_active', 'question', 'votes']
+        fields = ['user', 'id', 'question', 'text']
 
 
 class ThreadSerializer(serializers.ModelSerializer):
     user = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
-    Question = QuestionSerializer(read_only=True)
+    question = serializers.PrimaryKeyRelatedField(queryset=Question.objects.all(), required=False)
 
     class Meta:
         model = Thread
-        fields = ['user', 'id', 'title', 'description', 'Question']
+        fields = ['user', 'id', 'title', 'description', 'question']

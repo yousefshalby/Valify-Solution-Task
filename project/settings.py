@@ -138,7 +138,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'voters.User'
 
 ACCESS_TOKEN = datetime.timedelta(minutes=10)
-Refresh_TOKEN = datetime.timedelta(hours=1)
+REFRESH_TOKEN = datetime.timedelta(hours=1)
 
 # Email settings
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'

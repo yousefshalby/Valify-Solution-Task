@@ -1,40 +1,73 @@
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from .serializers import UserSerializer
-from rest_framework.permissions import IsAuthenticated
-from .models import MyToken
-from .serializers import EmailVerificationSerializer
+from .serializers import UserSerializer, EmailVerificationSerializer, LoginSerializer
+from .models import MyToken, MyRefreshToken
+from django.http import HttpResponseRedirect
+from django.conf import settings
+from django.core.mail import send_mail
+from django.core.cache import cache
+from .utils import create_confirmation_number
+from .authentication import MyOwnTokenAuthentication
+from rest_framework.authtoken.views import ObtainAuthToken
 
 
 class RegistrationApiView(APIView):
+    serializer_class = UserSerializer
 
     def post(self, request, *args, **kwargs):
-        serializer = UserSerializer(data=request.data)
+        serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
-            serializer.save()
-            return Response({"user": serializer.data}, status=status.HTTP_200_OK)
+            cache.set('user_data', request.data, 601)  # 10 minutes
+            username = serializer.validated_data['username']
+            send_mail(
+                f'message from the poll app to {username} verify your account please enter the 6-digit number to confirm',
+                create_confirmation_number(),
+                settings.EMAIL_HOST_USER,
+                [serializer.validated_data['email']],
+            )
+            return HttpResponseRedirect(redirect_to='http://127.0.0.1:8000/voter/verifiy/')
         return Response(serializer.errors, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 
 class EmailVerificationApiView(APIView):
+    serializer_class = EmailVerificationSerializer
 
     def post(self, request, *args, **kwargs):
-        serializer = EmailVerificationSerializer(instance=request.data)
+        serializer = self.serializer_class(data=request.data)
         if serializer.is_valid():
-            if serializer.validated_data['verification_number'] == request.user.create_confirmation_number:
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
-            return Response({"msg": "you have entered the wrong number"})
+            if cache.get('otp'):
+                if serializer.validated_data['verification_number'] == cache.get('otp'):
+                    request.user.is_email_verified = True
+                    user_serializer = cache.get('user_data')
+                    user_data = UserSerializer(data=user_serializer)
+                    user_data.is_valid()
+                    user_data.save()
+                    return Response({"msg": "your account has been created"}, status=status.HTTP_201_CREATED)
+                return Response({"msg": "you have entered the wrong number"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"msg": "your otp number is expired please Register again"})
         return Response(serializer.errors, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 
 class LoginApiView(APIView):
-    def get(self, request, *args, **kwargs):
-        token_key = request.headers.get('Authorization').split(' ')[1]
-        token = MyToken.objects.get(key=token_key)
-        serializer = UserSerializer(instance=token.user)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+    serializer_class = LoginSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data, context={'request': request})
+        serializer.is_valid()
+        user = serializer.validated_data['user']
+        token, created = MyToken.objects.get_or_create(user=user)
+        return Response({'token': token.key,
+                         'user_id': user.pk,
+                         'email': user.email})
 
 
 class RefreshApiView(APIView):
-    pass
+
+    def post(self, request, *args, **kwargs):
+        token_key = request.headers.get('Authorization').split(' ')[1]
+        token = MyToken.objects.get(key=token_key)
+        refresh_token = MyRefreshToken.objects.create(user=token.user)
+        return Response({"Token": token.key,
+                         "Refresh Token access key": refresh_token.access_key,
+                         "Refresh Token new Refresh Key": refresh_token.refresh_token_key})

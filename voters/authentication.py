@@ -10,6 +10,7 @@ class MyOwnTokenAuthentication(TokenAuthentication):
     model = MyToken
 
     def authenticate_credentials(self, key, request=None):
+
         models = self.get_model()
 
         try:
@@ -33,9 +34,9 @@ class MyOwnTokenAuthentication(TokenAuthentication):
                 {"error": "Token has expired", "is_authenticated": False}
             )
 
-        if refresh_token.created < utc_now - settings.Refresh_TOKEN:
+        if refresh_token.created < utc_now - settings.REFRESH_TOKEN:
             raise AuthenticationFailed(
-                {"error": "Refresh Token has expired", "is_authenticated": False}
+                {"error": "Refresh token has expired", "is_authenticated": False}
             )
 
         return token.user, token, refresh_token

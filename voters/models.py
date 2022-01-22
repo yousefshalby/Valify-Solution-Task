@@ -6,11 +6,9 @@ from django.contrib.auth.validators import UnicodeUsernameValidator
 import binascii
 import os
 from django.utils.translation import ugettext_lazy as _
-from django.db.models.signals import post_save, pre_save
+from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.conf import settings
-from django.core.mail import send_mail
-from django.utils.crypto import get_random_string
 
 
 class MyToken(models.Model):
@@ -25,27 +23,45 @@ class MyToken(models.Model):
         verbose_name = _("Token")
         verbose_name_plural = _("Tokens")
 
-    def save(self, *args, **kwargs):
-        if not self.key:
-            self.key = self.generate_key()
-        return super(MyToken, self).save(*args, **kwargs)
-
     def generate_key(self):
         return binascii.hexlify(os.urandom(20)).decode()
 
     def __str__(self):
         return self.key
 
-
-class MyRefreshToken(MyToken):
-
     def save(self, *args, **kwargs):
         if not self.key:
             self.key = self.generate_key()
+        return super(MyToken, self).save(*args, **kwargs)
+
+
+class MyRefreshToken(models.Model):
+    access_key = models.CharField(_("Access_Key"), max_length=40, db_index=True, unique=True, blank=True, null=True)
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, related_name='auth_refresh_token',
+        on_delete=models.CASCADE, verbose_name=_("User")
+    )
+    refresh_token_key = models.CharField(_("Refresh_Token_Key"), max_length=40, primary_key=True, db_index=True, unique=True)
+    refresh_token_created = models.DateTimeField(_("Created"), auto_now_add=True)
+
+    def generate_access_token(self):
+        return binascii.hexlify(os.urandom(20)).decode()
+
+    def generate_refresh_token(self):
+        return binascii.hexlify(os.urandom(20)).decode()
+
+    def __str__(self):
+        return self.refresh_token_key
+
+    def save(self, *args, **kwargs):
+        if self.refresh_token_key:
+            self.key = self.generate_access_token()
+
+        self.refresh_token_key = self.generate_refresh_token()
         return super(MyRefreshToken, self).save(*args, **kwargs)
 
 
-@receiver(post_save, sender=MyToken)
+@receiver(post_save, sender=settings.AUTH_USER_MODEL)
 def RefreshTokenCreate(sender, instance, created, **kwargs):
     if created:
         MyRefreshToken.objects.create(user=instance)
@@ -90,25 +106,16 @@ class User(AbstractUser):
     EMAIL_FIELD = 'email'
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
-    is_verified = models.BooleanField(default=False, blank=True, null=True)
+
+    is_email_verified = models.BooleanField(default=False, blank=True, null=True)
     username_validator = UnicodeUsernameValidator()
     email = models.EmailField(_('email address'), unique=True, blank=False, null=False)
     email_verified_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
 
-    @property
-    def create_confirmation_number(self):
-        return get_random_string(length=6, allowed_chars='1234567890')
-
-
-@receiver(pre_save, sender=settings.AUTH_USER_MODEL)
-def send_mail_on_create(sender, instance, created, **kwargs):
-    if created:
-        send_mail(
-            f'message from the poll app to {instance.username} to verify you account so please enter the 6-digit number to confirm',
-            instance.create_confirmation_number,
-            instance.email,
-            settings.EMAIL_HOST_USER,
-        )
+    # @property
+    # def create_confirmation_number(self):
+    #     return get_random_string(length=6, allowed_chars='1234567890')
 
 
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)

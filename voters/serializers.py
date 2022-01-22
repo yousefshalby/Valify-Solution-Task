@@ -16,7 +16,7 @@ class UserSerializer(serializers.ModelSerializer):
         extra_kwargs = {"password": {"write_only": True}}
 
     def validate(self, attrs):
-        if self.context.get('is_created'):
+        if self.context:
             if 'password' not in attrs and 'confirm_password' in attrs:
                 raise ValidationError({"password": _("password field is required")})
             if 'confirm_password' not in attrs and 'password' in attrs:
@@ -62,7 +62,7 @@ class LoginSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = get_user_model()
-        fields = ['email', 'password']
+        fields = ['email', 'password', "id"]
         extra_kwargs = {"password": {"write_only": True}}
 
     def validate(self, attrs):
@@ -86,12 +86,10 @@ class LoginSerializer(serializers.ModelSerializer):
 
 
 class EmailVerificationSerializer(serializers.ModelSerializer):
-    verification_number = serializers.SerializerMethodField()
+    verification_number = serializers.CharField(write_only=True, required=True)
 
     class Meta:
         model = get_user_model()
         fields = ['verification_number']
 
-    def get_verification_number(self, obj):
-        return obj.create_confirmation_number
 

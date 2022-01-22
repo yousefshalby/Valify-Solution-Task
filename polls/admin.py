@@ -4,7 +4,7 @@ from .models import Question, Choice, Thread
 
 @admin.register(Question)
 class QuestionAdmin(admin.ModelAdmin):
-    list_display = ['title', 'description', 'expire_at', 'has_voted', 'status']
+    list_display = ['title', 'description', 'expire_at', 'status']
     list_filter = ['title', 'expire_at']
 
 

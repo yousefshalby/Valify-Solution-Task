@@ -5,9 +5,9 @@ app_name = "voters"
 
 urlpatterns = [
 
-    path('register/', RegistrationApiView, name='register'),
-    path('create/<int:question_id>/', EmailVerificationApiView, name='email-verification'),
-    path('login/', LoginApiView, name='login'),
-    path('refresh/', RefreshApiView, name='refresh'),
+    path('register/', RegistrationApiView.as_view(), name='register'),
+    path('verifiy/', EmailVerificationApiView.as_view(), name='email-verification'),
+    path('login/', LoginApiView.as_view(), name='login'),
+    path('refresh/', RefreshApiView.as_view(), name='refresh'),
 
 ]
