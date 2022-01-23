@@ -1,7 +1,7 @@
-# Valify-Soultions-Task
+# Valify-Solution-Task
 
 
-<P>Here you can Find Valify- Soultions task task with Postgres dataBase and and tested by unittesting</p>
+<P>Here you can Find Valify- Solution task task with Postgres dataBase and and tested by unittesting</p>
 
 # Setup & Launch:
 
