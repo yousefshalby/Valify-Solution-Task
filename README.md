@@ -11,16 +11,14 @@
 
 3. source venv/bin/activate
 
-4. cd project/
+4. pip install -r requirement.txt
 
-5. pip install -r requirement.txt
+5. to create our Postgres database you will find credentials in (.env) file in project folder which contains settings you will find db_name and db_user and password
 
-6. to create our Postgres database you will find credentials in (.env) file in project folder which contains settings you will find db_name and db_user and password
+6. python manage.py makemigrations
 
-7. python manage.py makemigrations
+7. python manage.py migrate
 
-8. python manage.py migrate
+8. If you want to check all tests ==> python manage.py test
 
-9. If you want to check all tests ==> python manage.py test
-
-10. python manage.py runserver
+9. python manage.py runserver
